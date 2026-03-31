@@ -13,13 +13,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Emscripten
-        uses: emscripten-core/emsdk-action@v3
-        with:
-          version: latest
+      - name: Install Emscripten
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          ./emsdk install latest
+          ./emsdk activate latest
+          echo "$(pwd)" >> $GITHUB_PATH
+          echo "EMSDK=$(pwd)" >> $GITHUB_ENV
 
       - name: Compile C++ to WebAssembly
         run: |
+          source emsdk/emsdk_env.sh
           emcc main.cpp \
             -o index.js \
             -s EXPORTED_FUNCTIONS='["_add"]' \
