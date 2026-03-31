@@ -1,49 +1,36 @@
-name: Build WASM Module
+name: Build WebAssembly
 
 on:
   push:
-    paths:
-      - 'wasm_module.cpp'
-  workflow_dispatch:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build-wasm:
+  build:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Setup Emscripten
+        uses: emscripten-core/emsdk-action@v3
+        with:
+          version: latest
+
+      - name: Compile C++ to WebAssembly
         run: |
-          git clone https://github.com/emscripten-core/emsdk.git
-          cd emsdk
-          ./emsdk install latest
-          ./emsdk activate latest
-          echo "$PWD/upstream/emscripten" >> $GITHUB_PATH
-          echo "$PWD" >> $GITHUB_PATH
-      
-      - name: Compile C++ to WASM
-        run: |
-          # Compile to WASM with optimizations
-          em++ wasm_module.cpp \
-            -o wasm_module.js \
+          emcc main.cpp \
+            -o index.js \
+            -s EXPORTED_FUNCTIONS='["_add"]' \
+            -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
             -s WASM=1 \
-            -s EXPORTED_FUNCTIONS='["_malloc", "_free"]' \
-            -s EXPORTED_RUNTIME_METHODS='["cwrap", "ccall", "getValue", "setValue"]' \
-            -s MODULARIZE=1 \
-            -s EXPORT_NAME='createWasmModule' \
-            -s ALLOW_MEMORY_GROWTH=1 \
-            -O3 \
-            --bind
-          
-          # Show file sizes
-          ls -lh wasm_module.*
-      
-      - name: Upload WASM artifacts
+            -s NO_EXIT_RUNTIME=1
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: wasm-module
+          name: wasm-output
           path: |
-            wasm_module.js
-            wasm_module.wasm
+            index.js
+            index.wasm
